@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cam Viewer</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 1rem; }
+      button { padding: 0.5rem 1rem; }
+      ul { padding-left: 1.2rem; }
+      li { margin: 0.25rem 0; }
+      .ok { color: green; } .fail { color: #a00; }
+    </style>
+  </head>
+  <body>
+    <h1>Cam Viewer</h1>
+    {% if cfg.active_camera %}
+      <p>Active: <strong>{{ cfg.active_camera }}</strong></p>
+    {% else %}
+      <p>No active camera</p>
+    {% endif %}
+    <form method="post" action="/discover"><button>Discover ONVIF Cameras</button></form>
+    <h2>Cameras</h2>
+    <ul>
+      {% for c in cfg.cameras %}
+        <li>
+          <strong>{{ c.name }}</strong> ({{ 'enabled' if c.enabled else 'disabled' }})
+          {% if c.rtsp_url %} — rtsp set{% endif %}
+          <form style="display:inline" method="get" action="/edit">
+            <input type="hidden" name="name" value="{{ c.name }}"/>
+            <button>Edit</button>
+          </form>
+          <form style="display:inline" method="post" action="/set-active">
+            <input type="hidden" name="name" value="{{ c.name }}"/>
+            <button>Set Active</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if request.query_params.get('test') == 'ok' %}
+      <p class="ok">✅ Test ok</p>
+    {% elif request.query_params.get('test') == 'fail' %}
+      <p class="fail">❌ Test failed</p>
+    {% endif %}
+  </body>
+</html>

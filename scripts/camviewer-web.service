@@ -1,0 +1,13 @@
+[Unit]
+Description=CamViewer Web Portal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/opt/camviewer
+ExecStart=/usr/bin/env uv run uvicorn camviewer.main:app --host 0.0.0.0 --port 8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

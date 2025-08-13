@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Edit {{ cam.name }}</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 1rem; }
+      input { padding: 0.35rem; width: 22rem; max-width: 100%; }
+      label { display:block; margin: 0.25rem 0; }
+      button { padding: 0.5rem 1rem; margin-top: 0.5rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Edit {{ cam.name }}</h1>
+    <form method="post" action="/save">
+      <label>Name <input name="name" value="{{ cam.name }}" readonly /></label>
+      <label>Host <input name="host" value="{{ cam.host }}" /></label>
+      <label>RTSP URL <input name="rtsp_url" value="{{ cam.rtsp_url or '' }}" size="60" /></label>
+      <label>User <input name="username" value="{{ cam.username or '' }}" /></label>
+      <label>Pass <input name="password" value="{{ cam.password or '' }}" /></label>
+      <label>Enabled <input type="checkbox" name="enabled" {% if cam.enabled %}checked{% endif %} /></label>
+      <button>Save</button>
+    </form>
+    <h3>Test</h3>
+    <form method="post" action="/test">
+      <input type="hidden" name="rtsp_url" value="{{ cam.rtsp_url or '' }}"/>
+      <button>Probe Stream</button>
+    </form>
+    <p><a href="/">Back</a></p>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+[project]
+name = "camviewer"
+version = "0.1.0"
+description = "Tiny Pi IP cam viewer with web portal & fullscreen playback"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "python-multipart",
+  "jinja2",
+  "httpx",
+  "pydantic>=2",
+  "pyyaml",
+  "loguru",
+  "ws-discovery",
+  "onvif-zeep",
+]
+
+[tool.uv]
