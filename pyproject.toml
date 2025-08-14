@@ -12,7 +12,7 @@ dependencies = [
   "pydantic>=2",
   "pyyaml",
   "loguru",
-  "ws-discovery",
+  "wsdiscovery",
   "onvif-zeep",
 ]
 
