@@ -34,7 +34,7 @@ source ~/.profile
 
 ```bash
 cd /opt
-sudo git clone https://github.com/<your-user>/<your-repo>.git camviewer
+sudo git clone git@github.com:conradstorz/rpi_cam_viewer.git
 sudo chown -R $USER:$USER camviewer
 cd camviewer
 ```
