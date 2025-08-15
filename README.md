@@ -1,83 +1,181 @@
-# CamViewer (Pi Zero 2 W friendly)
+Here’s the new `README.md` I’ve prepared based on everything we learned, including Wi-Fi setup, screen-blanking prevention, and the working Lorex stream test commands:
 
-A tiny Raspberry Pi app that discovers ONVIF/RTSP cameras, lets you pick one in a web portal, and plays it fullscreen on HDMI.
+---
 
-## 1) Prepare your Raspberry Pi
+# Raspberry Pi IP Camera Viewer
 
-* Use **Raspberry Pi Imager** to flash Raspberry Pi OS (Lite recommended) to a microSD.
-* In Imager’s “OS Customisation”:
+This project runs on the smallest Raspberry Pi with HDMI output (e.g., Raspberry Pi Zero 2 W) and connects to local Wi-Fi to automatically discover and view RTSP video streams from IP cameras. It provides a web portal for selecting cameras and adjusting behavior.
 
-  * Set hostname and user/password
-  * Enable Wi-Fi and SSH
-* Connect mini-HDMI → HDMI to your display and boot.
-* SSH in (or use a local keyboard/monitor).
+---
 
-## 2) Update base system and install tools
+## Features
 
-```bash
-sudo apt update
-sudo apt full-upgrade -y
-sudo apt install -y git mpv
-```
+* Works with small Raspberry Pi boards (Zero 2 W recommended for Wi-Fi + HDMI)
+* Scans network for IP cameras via ONVIF WS-Discovery
+* Web portal for configuring camera selection
+* Fullscreen video display on HDMI output
+* Automatic directory creation for required folders (`static/`, etc.)
+* Command-line test scripts to verify RTSP stream access
+* Supports Lorex/Dahua `cam/realmonitor` RTSP paths
+* Avoids OS sleep/screen blanking for continuous viewing
 
-## 3) Install `uv` (recommended workflow)
+---
 
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# Re-login or:
-source ~/.profile
-```
+## Requirements
 
-## 4) Clone from GitHub
+**Hardware**
 
-> Replace the URL with your repository URL.
+* Raspberry Pi Zero 2 W (or larger Pi with HDMI)
+* HDMI display
+* USB power supply
 
-```bash
-cd /opt
-sudo git clone https://github.com/conradstorz/rpi_cam_viewer.git
-sudo chown -R $USER:$USER rpi_cam_viewer
-cd rpi_cam_viewer
-```
+**Software**
 
-## 5) Install dependencies
+* Raspberry Pi OS Lite or Full
+* Python 3.9+
+* `ffmpeg` (provides `ffprobe` and `ffplay`)
+* `mpv` (for efficient video playback)
+* `nmap` (for scanning RTSP paths)
+* Required Python packages from `pyproject.toml` (install with `uv sync` or `pip install .`)
+
+---
+
+## First-Run Setup
+
+The program will automatically create missing directories like `static/` on first run.
+If `wsdiscovery` or other dependencies are missing, install them with:
 
 ```bash
 uv sync
 ```
 
-## 6) Run the web portal
+---
+
+## Wi-Fi Setup on Raspberry Pi OS
 
 ```bash
-uv run uvicorn camviewer.main:app --host 0.0.0.0 --port 8080
+sudo raspi-config
 ```
 
-Visit `http://<pi-ip>:8080` to discover ONVIF cameras, set RTSP URLs, and choose the active camera.
+1. Go to **System Options → Wireless LAN**
+2. Enter your SSID and password
+3. Reboot
 
-## 7) (Optional) Enable systemd services
+Or edit `/etc/wpa_supplicant/wpa_supplicant.conf`:
 
 ```bash
-sudo cp scripts/camviewer-*.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable camviewer-web camviewer-player
-sudo systemctl start camviewer-web camviewer-player
+country=US
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+
+network={
+    ssid="YourSSID"
+    psk="YourPassword"
+}
 ```
-
-## 8) Configuration
-
-CamViewer reads the first existing file from this list (in order):
-
-* `/etc/camviewer/config.yaml` (preferred)
-* `/var/lib/camviewer/config.yaml`
-* `./config.yaml` (dev)
-
-You can edit the config via the web portal or directly with a text editor.
 
 ---
 
-### Notes
+## Prevent Screen Blanking
 
-* **Player** uses `mpv` in fullscreen with low-latency settings and auto-restarts on failure.
-* **Discovery** uses WS-Discovery to find ONVIF devices; you can manually paste RTSP URLs if needed.
-* **Security**: Run on a trusted LAN or add auth/reverse proxy in front of the web portal.
+Disable HDMI power saving so the video display remains on:
 
+```bash
+# Disable screen blanking in console mode
+sudo raspi-config
+# Go to: Display Options → Screen Blanking → Disable
 
+# Or edit /boot/config.txt
+sudo nano /boot/config.txt
+```
+
+Add:
+
+```
+consoleblank=0
+```
+
+For LXDE desktop:
+
+```bash
+# Disable screensaver
+lxsession-default-apps
+```
+
+---
+
+## Testing RTSP Access from Command Line
+
+Before integrating into the program, verify camera stream access.
+
+### 1. Export environment variables
+
+```bash
+export IP=192.168.86.2       # Camera IP
+export USER=admin            # Camera username
+export PASS='lorexadmin'     # Camera password
+```
+
+### 2. URL-encode the password (if it has special chars)
+
+```bash
+CAM_PASS_ENC=$(python3 - <<'PY' "$PASS"
+import sys, urllib.parse
+print(urllib.parse.quote(sys.argv[1]))
+PY
+)
+```
+
+### 3. Test common Lorex/Dahua RTSP paths
+
+```bash
+for sp in \
+  "cam/realmonitor?channel=1&subtype=0" \
+  "cam/realmonitor?channel=1&subtype=1" \
+  "cam/realmonitor?channel=1&subtype=2"
+do
+  URL="rtsp://${USER}:${CAM_PASS_ENC}@${IP}:554/${sp}"
+  echo "Testing: $URL"
+  CODEC=$(ffprobe -rtsp_transport tcp -v error -select_streams v:0 \
+          -show_entries stream=codec_name -of csv=p=0 "$URL" 2>/dev/null)
+  [ -n "$CODEC" ] && echo "✔ WORKS [$CODEC] -> $URL" && break
+done
+```
+
+### 4. Play the working stream full-screen
+
+```bash
+STREAM_PATH='cam/realmonitor?channel=1&subtype=1'
+mpv --no-config --vo=drm --gpu-context=drm --fs --no-osd-bar --profile=low-latency --hwdec=auto-safe \
+  "rtsp://${USER}:${PASS}@${IP}:554/${STREAM_PATH}"
+```
+
+---
+
+## Web Portal
+
+The Flask-based web portal runs on port `5000` by default and allows you to:
+
+* View discovered cameras
+* Select active camera
+* Adjust stream settings
+
+Start the service:
+
+```bash
+uv run python app.py
+```
+
+Then open in a browser:
+
+```
+http://<pi-ip>:5000
+```
+
+---
+
+## Notes
+
+* First run automatically creates missing directories like `static/`.
+* Works best on wired or stable Wi-Fi connections for HD streams.
+* Some cameras require you to enable RTSP in their web settings.
