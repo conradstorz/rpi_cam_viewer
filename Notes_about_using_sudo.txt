@@ -1,0 +1,175 @@
+Alright — here’s a **cleaned-up and safe install + run procedure** for your Raspberry Pi cam viewer project, clearly marking where `sudo` is needed.
+
+---
+
+# **Raspberry Pi Cam Viewer – Safe Install & Run Instructions**
+
+## **1. Initial Setup**
+
+Perform these as your **normal user** (`conrad` in your case), not as root.
+
+### Update the system
+
+```bash
+sudo apt update && sudo apt full-upgrade -y
+sudo apt install -y uv mpv ffmpeg nmap python3 python3-pip
+```
+
+---
+
+## **2. Prepare the Project Directory**
+
+We’ll store the app in `/opt/camviewer` but **give you ownership** so you don’t have to be root later.
+
+```bash
+sudo mkdir -p /opt/camviewer
+sudo chown $USER:$USER /opt/camviewer
+```
+
+---
+
+## **3. Clone the Repository**
+
+```bash
+cd /opt/camviewer
+git clone https://github.com/<your-repo>/camviewer.git .
+```
+
+---
+
+## **4. Install Python Dependencies**
+
+```bash
+uv sync --locked
+```
+
+(`sudo` is **not** used here — `uv` will install into your project’s `.venv`.)
+
+---
+
+## **5. Test Camera Access**
+
+First, export your credentials **as your user**:
+
+```bash
+export IP="192.168.86.2"
+export USER="admin"
+export PASS="lorexadmin"
+```
+
+Probe for a working stream:
+
+```bash
+CAM_PASS_ENC=$(python3 - <<'PY' "$PASS"
+import sys, urllib.parse
+print(urllib.parse.quote(sys.argv[1]))
+PY
+)
+
+for sp in \
+  "cam/realmonitor?channel=1&subtype=0" \
+  "cam/realmonitor?channel=1&subtype=1" \
+  "cam/realmonitor?channel=1&subtype=2"
+do
+  URL="rtsp://${USER}:${CAM_PASS_ENC}@${IP}:554/${sp}"
+  echo "Testing: $URL"
+  CODEC=$(ffprobe -rtsp_transport tcp -v error -select_streams v:0 \
+          -show_entries stream=codec_name -of csv=p=0 "$URL" 2>/dev/null)
+  [ -n "$CODEC" ] && echo "✔ WORKS [$CODEC] -> $URL" && break
+done
+```
+
+---
+
+## **6. Play the Stream (Low Latency)**
+
+Example for subtype 1 (D1 resolution):
+
+```bash
+STREAM_PATH='cam/realmonitor?channel=1&subtype=1'
+mpv --no-config --vo=drm --gpu-context=drm --fs --no-osd-bar \
+    --profile=low-latency --hwdec=auto-safe \
+    "rtsp://${USER}:${PASS}@${IP}:554/${STREAM_PATH}"
+```
+
+---
+
+## **7. Set Up as a Systemd Service**
+
+We’ll have systemd run this as **your normal user** so it auto-starts on boot.
+
+### Create a service unit
+
+```bash
+sudo nano /etc/systemd/system/camviewer-player.service
+```
+
+Paste:
+
+```ini
+[Unit]
+Description=Cam Viewer Player
+After=network.target
+
+[Service]
+User=conrad
+WorkingDirectory=/opt/camviewer
+ExecStart=/usr/bin/mpv --no-config --vo=drm --gpu-context=drm \
+    --fs --no-osd-bar --profile=low-latency --hwdec=auto-safe \
+    "rtsp://${USER}:${PASS}@${IP}:554/${STREAM_PATH}"
+Restart=on-failure
+Environment=IP=192.168.86.2
+Environment=USER=admin
+Environment=PASS=lorexadmin
+Environment=STREAM_PATH=cam/realmonitor?channel=1&subtype=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+---
+
+### Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable camviewer-player
+sudo systemctl start camviewer-player
+```
+
+---
+
+## **8. Prevent Screen Blanking**
+
+```bash
+sudo raspi-config
+# Navigate to Display Options → Screen Blanking → Disable
+```
+
+Or via CLI:
+
+```bash
+xset s off
+xset -dpms
+xset s noblank
+```
+
+---
+
+## **9. Wi-Fi Performance Tips**
+
+* Place Pi close to the access point.
+* Use **5GHz Wi-Fi** if supported.
+* Assign a **static IP** in your router for the Pi and camera.
+* If stability is an issue, consider using **Ethernet**.
+
+---
+
+## **Root vs Normal User Recap**
+
+* **Normal user**: All development, camera testing, running mpv manually.
+* **`sudo`**: Installing packages, creating `/opt` dirs, systemd service setup, system config changes.
+* **Never stay in `sudo -s` or `sudo su`** unless doing many root tasks at once — and then exit immediately.
+
+---
+
