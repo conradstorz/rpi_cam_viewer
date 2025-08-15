@@ -34,9 +34,9 @@ source ~/.profile
 
 ```bash
 cd /opt
-sudo git clone git@github.com:conradstorz/rpi_cam_viewer.git
-sudo chown -R $USER:$USER camviewer
-cd camviewer
+sudo git clone https://github.com/conradstorz/rpi_cam_viewer.git
+sudo chown -R $USER:$USER rpi_cam_viewer
+cd rpi_cam_viewer
 ```
 
 ## 5) Install dependencies

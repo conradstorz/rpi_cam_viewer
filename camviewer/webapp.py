@@ -5,10 +5,13 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 from .config import load_config, save_config, Camera
 from .discovery import discover_onvif
 from .rtsp_probe import rtsp_playable
+from .bootstrap import ensure_runtime_environment
 
+runtime = ensure_runtime_environment()
 env = Environment(loader=PackageLoader("camviewer", "templates"), autoescape=select_autoescape())
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Always safe to mount because bootstrap created the dir
+app.mount("/static", StaticFiles(directory=str(runtime["static_dir"])), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):

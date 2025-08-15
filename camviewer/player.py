@@ -1,5 +1,8 @@
+# player.py
 import subprocess, time
 from loguru import logger
+from pathlib import Path
+from .bootstrap import ensure_runtime_environment
 
 def run_fullscreen(rtsp_url: str):
     cmd = [
@@ -10,7 +13,9 @@ def run_fullscreen(rtsp_url: str):
     return subprocess.call(cmd)
 
 def play_forever(get_url_callable, retry_delay=3):
-    logger.add("/var/log/camviewer-player.log", rotation="1 MB", backtrace=False, diagnose=False, enqueue=True)
+    runtime = ensure_runtime_environment()
+    log_path = Path(runtime["log_dir"]) / "camviewer-player.log"
+    logger.add(str(log_path), rotation="1 MB", backtrace=False, diagnose=False, enqueue=True)
     while True:
         url = get_url_callable()
         if not url:
