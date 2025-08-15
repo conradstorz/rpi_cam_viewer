@@ -1,15 +1,20 @@
 [Unit]
 Description=CamViewer Fullscreen Player
-After=graphical.target network-online.target
+After=multi-user.target network-online.target
 Wants=network-online.target
 
 [Service]
 User=pi
 WorkingDirectory=/opt/camviewer
-# Ensure no desktop needed (use tty1 and KMS/DRM if a compositor is present, mpv still works)
-Environment=DISPLAY=:0
+# Attach to tty1 for DRM/KMS
+StandardInput=tty
+StandardOutput=journal
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
 ExecStart=/usr/bin/env uv run python -c "from camviewer.main import run_player_loop; run_player_loop()"
 Restart=always
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target

@@ -1,3 +1,7 @@
+# lorex camera example
+# rtsp://admin:lorexadmin@192.168.86.2:554/cam/realmonitor?channel=1&subtype=1
+
+
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
